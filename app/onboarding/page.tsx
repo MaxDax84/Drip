@@ -19,13 +19,12 @@ export default function OnboardingPage() {
   const [user, setUser] = useState<{ id: string } | null>(null)
 
   const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    createClient().auth.getUser().then(({ data }) => {
       if (data.user) {
         setUser(data.user)
-        setStep(1) // Already logged in, start from step 1
+        setStep(1)
       }
     })
   }, [])
@@ -35,7 +34,7 @@ export default function OnboardingPage() {
     setLoading(true)
     setError('')
 
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await createClient().auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/confirm?next=/onboarding`,
@@ -53,6 +52,7 @@ export default function OnboardingPage() {
   async function handleSaveTopicsAndHours() {
     setLoading(true)
     setError('')
+    const supabase = createClient()
 
     const { data: userData } = await supabase.auth.getUser()
     if (!userData.user) {
@@ -61,7 +61,6 @@ export default function OnboardingPage() {
       return
     }
 
-    // Upsert user settings
     const { error: userError } = await supabase
       .from('users')
       .upsert({
@@ -78,7 +77,6 @@ export default function OnboardingPage() {
       return
     }
 
-    // Insert topics
     const topicsToInsert = topics.map((name) => ({
       user_id: userData.user!.id,
       name: name.trim(),
@@ -103,7 +101,6 @@ export default function OnboardingPage() {
     router.push('/dashboard')
   }
 
-  // If not yet authenticated, show email step
   if (!user) {
     return (
       <div className="min-h-screen bg-[#0F0F0F] flex items-center justify-center px-6">

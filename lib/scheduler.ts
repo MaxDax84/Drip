@@ -2,10 +2,12 @@ import { createClient } from '@supabase/supabase-js'
 import { generatePill } from './claude'
 import { getKnowledgeForTopic, markKnowledgeUsed } from './knowledge-engine'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 const FREE_PILLS_PER_DAY = 3
 const PRO_PILLS_PER_DAY = 10
@@ -25,6 +27,7 @@ function getTodayStart(): string {
 }
 
 export async function runScheduler(): Promise<{ sent: number; skipped: number; errors: string[] }> {
+  const supabase = getSupabase()
   let sent = 0
   let skipped = 0
   const errors: string[] = []
@@ -154,6 +157,7 @@ async function sendPushNotification(
   content: string,
   pillId: string
 ): Promise<void> {
+  const supabase = getSupabase()
   const { data: subscriptions } = await supabase
     .from('push_subscriptions')
     .select('subscription_json')

@@ -1,16 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
 import { researchTopic } from './claude'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export async function runKnowledgeEngine(): Promise<{ processed: number; errors: string[] }> {
+  const supabase = getSupabase()
   const errors: string[] = []
   let processed = 0
 
-  // Get all unique topics across all users
   const { data: topics, error: topicsError } = await supabase
     .from('topics')
     .select('id, name')
@@ -23,21 +25,18 @@ export async function runKnowledgeEngine(): Promise<{ processed: number; errors:
     return { processed: 0, errors: [] }
   }
 
-  // Deduplicate by name (same topic may exist for multiple users)
   const uniqueTopics = Array.from(
     new Map(topics.map((t) => [t.name.toLowerCase(), t])).values()
   )
 
   for (const topic of uniqueTopics) {
     try {
-      // Check how many unused knowledge base items exist
       const { count } = await supabase
         .from('knowledge_base')
         .select('id', { count: 'exact', head: true })
         .eq('topic_id', topic.id)
         .eq('used', false)
 
-      // Only fetch new knowledge if we have fewer than 5 unused items
       if ((count ?? 0) >= 5) continue
 
       console.log(`[KnowledgeEngine] Researching: ${topic.name}`)
@@ -68,6 +67,7 @@ export async function getKnowledgeForTopic(topicId: string, limit = 3): Promise<
   summary: string
   key_facts: string[]
 }[]> {
+  const supabase = getSupabase()
   const { data } = await supabase
     .from('knowledge_base')
     .select('id, source_url, summary, key_facts')
@@ -81,6 +81,7 @@ export async function getKnowledgeForTopic(topicId: string, limit = 3): Promise<
 
 export async function markKnowledgeUsed(ids: string[]): Promise<void> {
   if (ids.length === 0) return
+  const supabase = getSupabase()
   await supabase
     .from('knowledge_base')
     .update({ used: true })
